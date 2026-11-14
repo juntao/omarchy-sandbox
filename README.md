@@ -96,6 +96,10 @@ herdr pane split w1:p1 --direction right         # prints the new pane id, e.g. 
 herdr pane run w1:p2 codex
 ```
 
+![Claude Code, Codex, and a Chrome CLI in three Herdr panes](docs/images/herdr-multi-agent.png)
+
+Claude Code, Codex, and a Chrome CLI in three Herdr panes.
+
 ### Useful Herdr keys
 
 Omarchy's Herdr config uses **Ctrl+Space** as the prefix:
@@ -144,6 +148,10 @@ herdr agent list
 herdr --skill           # agent skill file
 ```
 
+![Herdr's sidebar with workspaces and running agents](docs/images/herdr-overview.png)
+
+Herdr's sidebar with workspaces and running agents.
+
 Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the server auto-started.
 The Herdr desktop app (`herdr-app`) and Hyprland theme sync are not
 installed. Super keybindings (`Super + Ctrl + Return`, and so on) are not
@@ -182,6 +190,10 @@ chrome-devtools stop
 `chrome-devtools-mcp` is pre-registered for Claude Code, Codex, and
 Gemini, and pointed at this Chrome (`--headless`, `--isolated`). The
 Chrome DevTools skills are copied into each agent's skills directory.
+
+![A zoomed Herdr pane running agent-browser and chrome-devtools on example.com](docs/images/herdr-browser-pane.png)
+
+A zoomed Herdr pane running agent-browser and chrome-devtools on example.com.
 
 ![Claude Code in the sandbox browsing Hacker News with Chrome](docs/images/hn-claude.png)
 
