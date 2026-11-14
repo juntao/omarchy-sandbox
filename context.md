@@ -36,6 +36,6 @@ Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the Herdr server
 auto-started.
 
 Codex is installed as `codex`. Prefer launching it with
-`sbx run codex --template omarchy-sandbox:4.5.0` so Docker Sandboxes can
+`sbx run codex --template juntaoyuan/omarchy-sandbox:4.5.0` so Docker Sandboxes can
 manage OpenAI credentials on the host. If you are already in a shell
 sandbox, run `codex` directly.

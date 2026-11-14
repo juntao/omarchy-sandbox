@@ -140,6 +140,6 @@ RUN git clone https://github.com/LazyVim/starter /home/agent/.config/nvim \
 ENV SHELL=/bin/bash
 WORKDIR /home/agent/workspace
 # Shell template: do not set ENTRYPOINT to an agent. Launch Codex with
-#   sbx run codex --template omarchy-sandbox:4.5.0
+#   sbx run codex --template juntaoyuan/omarchy-sandbox:4.5.0
 # or run `codex` inside a shell sandbox.
 CMD ["/bin/bash"]
