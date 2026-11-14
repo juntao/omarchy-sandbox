@@ -26,9 +26,35 @@ omarchy mise install
 
 The matching configuration is plain text under the agent's home directory: `~/.config/omarchy/`, `~/.config/herdr/config.toml`, `~/.config/starship.toml`, and the usual git, tmux, and editor files. An agent can read them, patch them, and verify the result with another CLI call.
 
+Omarchy also ships an agent skill that teaches agents to use this CLI and these files. The [`omarchy` skill](https://omarchy.org/manual/ai/) tells an agent to discover commands with `omarchy commands` and `omarchy <group> --help`, to edit config only under `~/.config/` and back a file up first, to install packages with `omarchy pkg add`, and to reset a broken config with `omarchy refresh`. A desktop install symlinks it into each agent's skill folder. The sandbox image does the same, linking it into `~/.claude/skills`, `~/.codex/skills`, `~/.gemini/skills`, and `~/.agents/skills`, so Claude Code, Codex, and Gemini list it next to the Chrome DevTools skills. The skill's Hyprland, theme, and screen-capture guides only apply on the desktop. Its command, config, package, and hook sections apply in the sandbox.
+
 Not every Omarchy command belongs in a headless sandbox. The image still ships many `omarchy-hyprland-*` helpers and hardware tools (brightness, battery, and the like). Those targets need the desktop or the physical machine, and they fail here, as the image's limitations describe. Agents should use the CLI and TUI layer: packages, themes as text, fonts, mise, and the default-app helpers.
 
-Browser use is part of that layer. The image includes Google Chrome (`google-chrome-stable`), Google's [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) with its `chrome-devtools` CLI, and Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), already pointed at that Chrome. Agents can open a page, take a snapshot, or drive DevTools without installing a second browser:
+That layer includes language toolchains. When an agent needs to write code or build a tool in a language the image does not ship, `omarchy install dev-env <lang>` sets up the stack in one command. It covers Go, Rust, Python, Node.js, Bun, Deno, Ruby, PHP, Java, Elixir, Zig, .NET, and more ([Omarchy development tools](https://omarchy.org/manual/development-tools/)). Most of these go through mise and install into the agent's home directory. Rust uses rustup and adds `clang` with pacman, through the image's passwordless sudo. An agent asked to write a small Go program can do this:
+
+```bash
+omarchy install dev-env go    # mise installs the latest Go and makes it the global default
+mkdir hello-go && cd hello-go
+go mod init hello
+# the agent writes main.go
+go build -o hello . && ./hello
+go test ./...
+```
+
+In my test in the image, the Go install took about three seconds and installed Go 1.27.4, and the program then built, tested, and ran. The same mise config makes `gh` and `uv` available: the first call to either one installs it. These downloads need network access, so the sandbox policy has to allow the toolchain's download hosts.
+
+Omarchy [hooks](https://omarchy.org/manual/dotfiles/) let an agent attach its own scripts to system events. `omarchy hook install <event> <script>` copies a script into `~/.config/omarchy/hooks/<event>.d/`. The events that matter to an agent are the non-visual ones. A `post-update` script can rerun a project's tests after the system updates. A `pre-refresh-pacman` script can add an `IgnorePkg` line, so the next package refresh keeps the image's Chrome and Claude Code builds. A `post-boot` script can log toolchain and agent versions when the machine starts.
+
+```bash
+omarchy hook install post-update ~/hooks/run-tests
+omarchy hook install pre-refresh-pacman ~/hooks/pin-packages
+omarchy hook install post-boot ~/hooks/record-tools
+omarchy hook post-update      # run an event's scripts now
+```
+
+In the sandbox, only one of these events fires by itself. `omarchy refresh pacman` runs the `pre-refresh-pacman` scripts before its package transaction, as on the desktop. The Hyprland desktop starts `post-boot`, and `omarchy update` stops early here because the sandbox has no systemd, so neither of those events fires on its own. An agent runs them directly with `omarchy hook post-update` or `omarchy hook post-boot`, for example after it updates packages itself.
+
+Browser use is part of the same CLI layer. The image includes Google Chrome (`google-chrome-stable`), Google's [chrome-devtools-mcp](https://github.com/ChromeDevTools/chrome-devtools-mcp) with its `chrome-devtools` CLI, and Vercel's [agent-browser](https://github.com/vercel-labs/agent-browser), already pointed at that Chrome. Agents can open a page, take a snapshot, or drive DevTools without installing a second browser:
 
 ```bash
 agent-browser open https://example.com
