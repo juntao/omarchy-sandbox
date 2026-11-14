@@ -55,15 +55,15 @@ RUN tmp=/tmp/bashrc.agent \
             '' \
             '# Add your own exports, aliases, and functions here.' \
             '' \
-            '. /etc/sandbox-persistent.sh'; \
+            '. /etc/sandbox-env.sh'; \
     } > "$tmp" \
     && install -o agent -g agent -m 0644 "$tmp" /home/agent/.bashrc \
     && rm -f "$tmp" \
     && touch /etc/sandbox-persistent.sh \
     && chown agent:agent /etc/sandbox-persistent.sh \
     && chmod 0644 /etc/sandbox-persistent.sh \
-    && printf '%s\n' '. /etc/sandbox-persistent.sh' > /etc/profile.d/sandbox-persistent.sh \
-    && chmod 0644 /etc/profile.d/sandbox-persistent.sh
+    && printf '%s\n' '. /etc/sandbox-env.sh' > /etc/profile.d/sandbox-env.sh \
+    && chmod 0644 /etc/profile.d/sandbox-env.sh
 
 # Set PATH in a separate ENV from OMARCHY_PATH. Docker does not expand a
 # variable that is defined in the same ENV instruction, which previously
@@ -71,7 +71,7 @@ RUN tmp=/tmp/bashrc.agent \
 ENV HOME=/home/agent
 ENV OMARCHY_PATH=/home/agent/.local/share/omarchy
 ENV PATH="/home/agent/.local/share/omarchy/bin:/home/agent/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-ENV BASH_ENV=/etc/sandbox-persistent.sh
+ENV BASH_ENV=/etc/sandbox-env.sh
 ENV EDITOR=nvim
 ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
     CURL_CA_BUNDLE=/etc/ssl/certs/ca-certificates.crt \
@@ -82,6 +82,17 @@ ENV SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt \
 # layers still expose; white it out in a later layer.
 USER root
 RUN rm -rf /home/devmarchy && test ! -e /home/devmarchy
+
+# Official Omarchy repo (herdr) plus a headless Herdr server that starts
+# with the shell. This is the agent-OS path: multiplexers and CLIs, no desktop.
+COPY scripts/omarchy-sandbox-ensure-herdr /usr/local/bin/omarchy-sandbox-ensure-herdr
+COPY scripts/sandbox-env.sh /etc/sandbox-env.sh
+COPY scripts/install-omarchy-repo-and-herdr.sh /tmp/install-omarchy-repo-and-herdr.sh
+RUN chmod 0755 /usr/local/bin/omarchy-sandbox-ensure-herdr \
+        /tmp/install-omarchy-repo-and-herdr.sh \
+    && chmod 0644 /etc/sandbox-env.sh \
+    && BASH_ENV= /tmp/install-omarchy-repo-and-herdr.sh \
+    && rm -f /tmp/install-omarchy-repo-and-herdr.sh
 
 USER agent
 WORKDIR /home/agent/workspace

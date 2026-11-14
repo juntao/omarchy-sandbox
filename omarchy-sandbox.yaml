@@ -2,7 +2,7 @@
 schemaVersion: "3"
 kind: workload
 displayName: Omarchy sandbox
-description: Headless Omarchy-on-Arch CLI/TUI environment for Docker Sandboxes (no Hyprland desktop). Codex, Claude Code, OpenCode, Gemini, and Copilot CLIs are installed; the default launch is a bash shell.
+description: Headless Omarchy agent OS for Docker Sandboxes (no Hyprland desktop). Herdr, Tmux, Codex, Claude Code, OpenCode, Gemini, and Copilot CLIs are installed; the default launch is a bash shell.
 
 capabilities:
   - type: com.docker.sandbox/sbx@1
@@ -37,6 +37,11 @@ capabilities:
           - archlinux.org
           - aur.archlinux.org
           - gitlab.archlinux.org
+          # Official Omarchy package repo (herdr) and signing key
+          - pkgs.omarchy.org
+          - keys.openpgp.org
+          # Herdr docs / updates
+          - herdr.dev
 
   - type: com.docker.sandbox/credential@1
     description: OpenAI API access for Codex CLI

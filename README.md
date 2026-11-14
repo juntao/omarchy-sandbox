@@ -1,10 +1,17 @@
 # Omarchy sandbox template
 
-A Docker Sandboxes template that gives you Omarchy's **CLI and TUI tools** on
-an Arch Linux userland, with Codex CLI already installed.
+A Docker Sandboxes template that runs **Omarchy as an agent OS**: the same
+CLI/TUI environment agents use on a real Omarchy box, without the Linux
+desktop. The desktop stays for humans. This image is for agents and their
+tools.
+
+Herdr and Tmux both work here. A headless Herdr server starts with the
+shell so agents can create sessions, panes, and other agent CLIs without
+a compositor. Codex, Claude Code, OpenCode, Gemini, and Copilot are
+already installed.
 
 This is **not** official Omarchy, and it is **not** a full Omarchy install.
-See [Limitations](#limitations) before you use it.
+There is no Hyprland UI. See [Limitations](#limitations) before you use it.
 
 The kit lives in this directory:
 
@@ -14,6 +21,7 @@ omarchy-sandbox/
 ├── omarchy-sandbox.dockerfile     # standalone rebuild from archlinux:base-devel
 ├── omarchy-sandbox.yaml           # v3 workload kit descriptor
 ├── context.md                     # agent instructions (written as AGENTS.md)
+├── scripts/                       # Herdr install, repo setup, and auto-start
 └── README.md
 ```
 
@@ -61,12 +69,36 @@ Smoke-tested with `docker run --rm omarchy-sandbox:4.5.0 bash -lc '...'` and
 | `omarchy` | on PATH for login, non-interactive, and interactive bash |
 | Codex CLI | `codex-cli 0.169.0` (`/usr/sbin/codex`) |
 | nvim | v0.12.6 (LazyVim) |
-| tmux | 3.8 |
+| tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
+| herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
 | lazygit | 0.66.3 |
 | starship | 1.27.0 |
 | git | 2.56.1 |
 
 Also installed: fastfetch, yay, `claude`, `opencode`, `gemini`, and `copilot`.
+
+## Herdr and Tmux
+
+This image is meant to run agents, not to impersonate the Omarchy desktop.
+Super keybindings (`Super + Ctrl + Return`, and so on) are not available.
+Use the CLIs:
+
+```bash
+# Herdr: a headless server is started from BASH_ENV on first shell
+herdr status server
+herdr session list
+herdr agent list
+herdr --skill          # agent skill file
+herdr                  # attach to the persistent session (needs a TTY)
+
+# Tmux, with Omarchy's config already in ~/.config/tmux
+tmux new-session -s work
+```
+
+Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the server auto-started.
+The official Herdr desktop app (`herdr-app`) and Hyprland theme-sync are not
+installed; those belong on a human desktop.
+
 
 ## Build or load the image
 
@@ -179,5 +211,6 @@ Prefer the sandbox commands above when you can.
 ## Persistent environment
 
 Use `/etc/sandbox-persistent.sh` for exports that later Bash sessions need.
-Login, interactive, and non-interactive shells source it (`BASH_ENV` is set).
-Do not put shell completion in that file.
+Login, interactive, and non-interactive shells source it through
+`/etc/sandbox-env.sh` (`BASH_ENV` is set). That wrapper also starts the
+Herdr server. Do not put shell completion in either file.

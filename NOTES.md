@@ -51,3 +51,33 @@ points at `/home/agent`, there are no `devmarchy` references in passwd, group,
 or sudoers, and the directory is empty. The standalone Dockerfile creates
 `/home/agent` from the start and does not have this leftover; rebuilding with
 it also avoids the extra 1.1 GB copy-up.
+
+6. **Herdr and the official Omarchy package repo.** The upstream image did
+   not install `herdr`. Both Dockerfiles download `omarchy-keyring` and
+   `herdr` from `https://pkgs.omarchy.org/stable/$arch`, verify each file
+   against the SHA-256 in the official repo database, and install them
+   with `pacman -U`. That avoids `pacman-key --init`, which can stall in
+   a Docker build when the container has little entropy. The official
+   `pkgs@omarchy.org` key (`40DFB630FF42BCFFB047046CF0134EE680CAC571`) is
+   imported afterward with a timeout; if that succeeds, `[omarchy]` is
+   added with required signatures, otherwise with optional signatures so
+   later syncs still work. Omarchy's `config/herdr/config.toml` is copied
+   to `~/.config/herdr`. The older `omarchy-herdr` package conflicts with
+   `herdr` and is not installed. The desktop app `herdr-app` (Wayland /
+   Vulkan) is also not installed.
+
+7. **Headless Herdr server.** `/usr/local/bin/omarchy-sandbox-ensure-herdr`
+   starts `herdr server` if it is not already running. `/etc/sandbox-env.sh`
+   calls that helper, then sources `/etc/sandbox-persistent.sh`. `BASH_ENV`
+   and login shells use `sandbox-env.sh`. Set `OMARCHY_SANDBOX_SKIP_HERDR=1`
+   to skip the auto-start.
+
+
+8. **BASH_ENV re-entry guard.** `ENV BASH_ENV=/etc/sandbox-env.sh` is inherited
+   by every later Dockerfile `RUN` that uses bash, and by the ensure-herdr
+   helper itself. Without a guard, that helper re-enters through `BASH_ENV`
+   and fork-loops. `sandbox-env.sh` returns immediately when
+   `OMARCHY_SANDBOX_ENV_SOURCED` is set; the helper sets
+   `OMARCHY_SANDBOX_ENSURE_HERDR_RUNNING`; and the install `RUN` invokes the
+   package script as `BASH_ENV= /tmp/install-omarchy-repo-and-herdr.sh` so
+   the build cannot inherit the hook.
