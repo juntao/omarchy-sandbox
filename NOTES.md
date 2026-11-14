@@ -129,3 +129,20 @@ directory (6.45 GB), so it was removed.
     (`~/.claude.json`), Codex (`~/.codex/config.toml`), and Gemini
     (`~/.gemini/settings.json`). The package's skills are copied into
     each agent's skills directory.
+
+11. **Omarchy agent skill and mise tools.** Following upstream
+    `omarchy-provision-user`, the `omarchy` skill from
+    `$OMARCHY_PATH/default/agents/skills/` is symlinked into
+    `~/.agents/skills`, `~/.claude/skills`, `~/.codex/skills`,
+    `~/.gemini/skills`, `~/.gemini/config/skills`, and
+    `~/.pi/agent/skills`. Upstream also links `omarchy-app` (Qt desktop
+    apps) and `diagnose-crash` (systemd-coredump); neither applies
+    without the desktop and systemd, so they are not linked.
+    Omarchy's `omarchy.toml` and `omarchy-tools.toml` go to
+    `/etc/mise/conf.d/`, and `mise reshim --system` builds the lazy
+    shims, as `install/user/mise.sh` does. The tool list drops `claude`,
+    `codex`, `opencode`, `copilot`, and `node`, which the image already
+    installs system-wide; otherwise `mise activate` in interactive
+    shells would put mise's lazy copies first. `omarchy-agent-accounts.toml`
+    (Omarchy's subscription switcher for claude and codex) is not
+    installed.

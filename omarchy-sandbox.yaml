@@ -40,6 +40,18 @@ capabilities:
           # Official Omarchy package repo (herdr) and signing key
           - pkgs.omarchy.org
           - keys.openpgp.org
+          # mise tool downloads (gh, uv, dev-env toolchains)
+          - release-assets.githubusercontent.com
+          - mise-versions.jdx.dev
+          - go.dev
+          - dl.google.com
+          - proxy.golang.org
+          - sum.golang.org
+          - nodejs.org
+          - static.rust-lang.org
+          - sh.rustup.rs
+          - index.crates.io
+          - static.crates.io
           # Herdr docs / updates
           - herdr.dev
 

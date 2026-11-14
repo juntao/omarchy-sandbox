@@ -192,6 +192,14 @@ RUN chmod 0755 /tmp/google-chrome-sandbox-wrapper \
         /tmp/install-chrome-and-devtools.sh \
     && /tmp/install-chrome-and-devtools.sh
 
+# Omarchy's `omarchy` agent skill, linked for Claude Code, Codex, Gemini,
+# and other harnesses, plus Omarchy's mise tool config (gh, uv, and more,
+# installed on first use).
+COPY --chown=agent:agent scripts/install-omarchy-agent-setup.sh /tmp/install-omarchy-agent-setup.sh
+RUN chmod 0755 /tmp/install-omarchy-agent-setup.sh \
+    && /tmp/install-omarchy-agent-setup.sh \
+    && rm -f /tmp/install-omarchy-agent-setup.sh
+
 # Agent instructions (browser CLIs, Herdr, tools). Also copied to
 # workspace; a host bind-mount of that directory hides those copies.
 COPY --chown=agent:agent context.md /home/agent/AGENTS.md

@@ -37,6 +37,18 @@ configured for this container (a PATH wrapper adds `--no-sandbox` and
 - Direct Chrome: `google-chrome-stable --headless --dump-dom URL`,
   `--screenshot=page.png`, or `--print-to-pdf=page.pdf`.
 
+Omarchy's `omarchy` skill is linked into `~/.claude/skills`,
+`~/.codex/skills`, `~/.gemini/skills`, and `~/.agents/skills`. Read it
+before changing system config or using `omarchy` commands; its Hyprland,
+theme, and capture guides only apply to the desktop.
+
+Omarchy's mise config (`/etc/mise/conf.d/omarchy-tools.toml`) declares
+`gh`, `uv`, and other CLIs as lazy tools: the first call installs them.
+Run `omarchy install dev-env <lang>` (go, rust, python, node, ruby, ...)
+to set up a language toolchain through mise. Hooks go in
+`~/.config/omarchy/hooks/<event>.d/` via `omarchy hook install <event>
+<script>` and run with `omarchy hook <event>`.
+
 A headless `herdr server` is started automatically with the shell (socket
 `~/.config/herdr/herdr.sock`). Use `herdr status`, `herdr session list`,
 `herdr agent list`, `herdr agent start`, and `herdr --skill`. Attach to the

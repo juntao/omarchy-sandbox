@@ -332,6 +332,8 @@ Herdr server. Do not put shell completion in either file.
 | Omarchy | v4.5.0 (commit `ac2690c`, recorded in `/etc/omarchy-sandbox-release`); `omarchy-version` prints `dev` |
 | `omarchy` | on PATH for login, non-interactive, and interactive bash |
 | herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
+| Omarchy skill | Omarchy's `omarchy` agent skill, linked into `~/.claude/skills`, `~/.codex/skills`, `~/.gemini/skills`, `~/.agents/skills`, and the Pi and Antigravity skill folders |
+| mise tools | Omarchy's mise config in `/etc/mise/conf.d/`: `gh`, `uv`, and the other CLIs it lists install on first use; `omarchy install dev-env <lang>` sets up Go, Rust, Python, Node, Ruby, and more |
 | Google Chrome | `google-chrome-stable`, headless-ready in this container |
 | Chrome DevTools | `chrome-devtools` CLI and `chrome-devtools-mcp` (Google) |
 | agent-browser | Vercel CLI, pointed at the image's Chrome |
