@@ -181,9 +181,30 @@ RUN git clone https://github.com/LazyVim/starter /home/agent/.config/nvim \
     && { nvim --headless "+Lazy! sync" +qa 2>/dev/null || true; } \
     && rm -rf /home/agent/.cache /tmp/*
 
+# Google Chrome plus agent CLI tools. Installed here, after yay and
+# before BASH_ENV, so the build does not start Herdr. The PATH wrapper
+# adds --no-sandbox and --disable-dev-shm-usage (the setuid sandbox
+# does not work as a non-root user in this container). Do not run
+# `agent-browser install`: that would download a second Chrome.
+COPY --chown=agent:agent scripts/google-chrome-sandbox-wrapper /tmp/google-chrome-sandbox-wrapper
+COPY --chown=agent:agent scripts/install-chrome-and-devtools.sh /tmp/install-chrome-and-devtools.sh
+RUN chmod 0755 /tmp/google-chrome-sandbox-wrapper \
+        /tmp/install-chrome-and-devtools.sh \
+    && /tmp/install-chrome-and-devtools.sh
+
+# Agent instructions (browser CLIs, Herdr, tools). Also copied to
+# workspace; a host bind-mount of that directory hides those copies.
+COPY --chown=agent:agent context.md /home/agent/AGENTS.md
+RUN cp -a /home/agent/AGENTS.md /home/agent/CLAUDE.md \
+    && cp -a /home/agent/AGENTS.md /home/agent/workspace/AGENTS.md \
+    && cp -a /home/agent/AGENTS.md /home/agent/workspace/CLAUDE.md
+
 # docker run/exec do not set SHELL. Without it, the auto-started Herdr
 # server opens new panes in /bin/sh instead of bash.
 ENV SHELL=/bin/bash
+ENV AGENT_BROWSER_EXECUTABLE_PATH=/usr/local/bin/google-chrome-stable
+ENV CHROME_DEVTOOLS_MCP_NO_USAGE_STATISTICS=1 \
+    CHROME_DEVTOOLS_MCP_NO_UPDATE_CHECKS=1
 # Set last so no build step above sources it (makepkg, yay, and nvim are
 # bash scripts and would otherwise start the Herdr server mid-build).
 ENV BASH_ENV=/etc/sandbox-env.sh

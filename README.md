@@ -14,10 +14,9 @@ The image is on Docker Hub as
 **Docker container:**
 
 ```bash
-docker run -d --name omarchy \
+docker run -dit --name omarchy \
   -v "$PWD":/home/agent/workspace \
-  juntaoyuan/omarchy-sandbox:4.5.0 \
-  bash -c 'exec sleep infinity'
+  juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
 **sbx sandbox (microVM):**
@@ -29,6 +28,8 @@ sbx policy init balanced      # once: or allow-all / deny-all
 cd ~/my-project
 sbx create -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .
 ```
+
+On Linux, the user running `sbx` needs access to `/dev/kvm` (usually the `kvm` group).
 
 **Docker cloud sandbox** (runs on Docker's cloud, after the same
 `sbx login`):
@@ -128,11 +129,11 @@ there first. A `herdr` binary on the host cannot see that socket, and Herdr
 does not listen on the network.
 
 The server is started by `/etc/sandbox-env.sh`, which bash reads through
-`BASH_ENV` or the login and interactive startup files. So the first **bash**
-process inside starts it. That is why the Docker command above keeps the
-container alive with `bash -c 'exec sleep infinity'`. A command that is
-not run through bash, such as `docker exec omarchy herdr status server`,
-does not start it and reports `status: not running` until some bash has run.
+`BASH_ENV` or the login and interactive startup files. The first **bash**
+process inside starts it, including the interactive bash that
+`docker run -dit` uses as the main process. A command that is not run
+through bash, such as `docker exec omarchy herdr status server`, does not
+start it and reports `status: not running` until some bash has run.
 
 ```bash
 herdr status server     # status: running, socket: /home/agent/.config/herdr/herdr.sock
@@ -153,30 +154,6 @@ Herdr and Omarchy's Tmux config both use **Ctrl+Space** as the prefix. Run
 one or the other in a terminal, not Herdr inside Tmux (or the reverse),
 unless you change one prefix.
 
-## More ways to get a shell
-
-**Docker:**
-
-```bash
-docker exec -it -u root omarchy bash               # root (or use sudo as agent)
-docker run -it --rm juntaoyuan/omarchy-sandbox:4.5.0   # throwaway interactive shell
-```
-
-The image's default user is already `agent`, so `-u agent` is not needed.
-
-**sbx:**
-
-```bash
-sbx run -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .   # create, start, and open a shell in one step
-sbx run --name omarchy        # re-attach to the sandbox's shell session
-sbx exec -u root omarchy bash # root
-sbx ls                        # list sandboxes
-```
-
-`sbx` pulls `--template` images from the registry by default. On Linux, the
-user running `sbx` needs read/write access to `/dev/kvm` (usually the `kvm`
-group, active in the shell that starts the `sbx` daemon).
-
 ## What is in the image
 
 | Item | Value |
@@ -186,6 +163,9 @@ group, active in the shell that starts the `sbx` daemon).
 | Omarchy | v4.5.0 (commit `ac2690c`, recorded in `/etc/omarchy-sandbox-release`); `omarchy-version` prints `dev` |
 | `omarchy` | on PATH for login, non-interactive, and interactive bash |
 | herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
+| Google Chrome | `google-chrome-stable`, headless-ready in this container |
+| Chrome DevTools | `chrome-devtools` CLI and `chrome-devtools-mcp` (Google) |
+| agent-browser | Vercel CLI, pointed at the image's Chrome |
 | Claude Code | `claude` 2.1.325 |
 | Codex CLI | `codex-cli 0.169.0` |
 | tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
@@ -208,6 +188,36 @@ Left out on purpose, because a headless agent OS does not use them:
   packages; makepkg's `debug` option is off.
 - opencode's second, unused platform binary.
 
+## Browse the web
+
+Google Chrome is installed as `google-chrome-stable`. In this container a
+PATH wrapper adds `--no-sandbox` and `--disable-dev-shm-usage`, so the
+usual headless CLI flags work as the `agent` user:
+
+```bash
+google-chrome-stable --headless --dump-dom https://example.com
+google-chrome-stable --headless --screenshot=page.png https://example.com
+google-chrome-stable --headless --print-to-pdf=page.pdf https://example.com
+```
+
+Agents can drive the same Chrome with two CLIs, also on PATH:
+
+```bash
+# Vercel agent-browser (uses AGENT_BROWSER_EXECUTABLE_PATH)
+agent-browser open https://example.com
+agent-browser snapshot -i
+
+# Google Chrome DevTools CLI (headless by default)
+chrome-devtools new_page "https://example.com"
+chrome-devtools take_screenshot 1 --filePath page.png
+chrome-devtools stop
+```
+
+`chrome-devtools-mcp` is pre-registered for Claude Code, Codex, and
+Gemini, and pointed at this Chrome (`--headless`, `--isolated`). The
+Chrome DevTools skills are copied into each agent's skills directory.
+Do not run `agent-browser install`; that would download a second Chrome.
+
 The kit:
 
 ```text
@@ -227,7 +237,7 @@ omarchy-sandbox/
 docker pull juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
-Tags `4.5.0` and `latest` (linux/amd64, about 1.3 GB compressed). `sbx run`
+Tags `4.5.0` and `latest` (linux/amd64, about 1.78 GB compressed). `sbx run`
 and `sbx create` with `-t juntaoyuan/omarchy-sandbox:4.5.0` pull it on
 their own.
 
@@ -252,7 +262,7 @@ Docker never needs it when you can pull or build. `sbx` keeps its own image
 store, separate from Docker's, so it needs `sbx template load` plus
 `--pull never`.
 
-**Do not commit the tarball to git.** It is about 3.2 GB, GitHub rejects any
+**Do not commit the tarball to git.** It is about 4.2 GB, GitHub rejects any
 file over 100 MB, and `*.tar` is in `.gitignore`. Share new versions by
 pushing to Docker Hub:
 
@@ -343,7 +353,7 @@ This is **not** official Omarchy, and it is **not** a full Omarchy install.
 - **Docker's kernel, not Omarchy's.** Docker Sandboxes still boots Docker's
   microVM kernel. This template only changes the userland (packages, configs,
   and CLIs).
-- **linux/amd64 and large.** The image is about **3.2 GB** unpacked.
+- **linux/amd64 and large.** The image is about **4.16 GB** unpacked.
 - **Network allow-list (v3 kit only).** `omarchy-sandbox.yaml` allows a fixed
   set of hosts (OpenAI, GitHub, npm, PyPI, Arch/AUR mirrors). Other hosts are
   blocked when you launch the kit with `sbx run ./omarchy-sandbox`. The

@@ -21,6 +21,22 @@ workspace is `/home/agent/workspace`.
 - `gemini` — Google Gemini CLI
 - `copilot` — GitHub Copilot CLI
 
+Google Chrome is installed as `google-chrome-stable` and is already
+configured for this container (a PATH wrapper adds `--no-sandbox` and
+`--disable-dev-shm-usage`). Prefer these tools to browse the web:
+
+- `agent-browser open https://example.com` then `agent-browser snapshot -i`
+  or `agent-browser screenshot page.png`. It uses
+  `AGENT_BROWSER_EXECUTABLE_PATH` (the image's Chrome). Do not run
+  `agent-browser install`.
+- `chrome-devtools new_page "https://example.com"`, then
+  `chrome-devtools take_screenshot 1 --filePath page.png`, and
+  `chrome-devtools stop` when finished. The `chrome-devtools` CLI and
+  `chrome-devtools-mcp` are Google's official Chrome DevTools tools;
+  the MCP server is registered for Claude Code, Codex, and Gemini.
+- Direct Chrome: `google-chrome-stable --headless --dump-dom URL`,
+  `--screenshot=page.png`, or `--print-to-pdf=page.pdf`.
+
 A headless `herdr server` is started automatically with the shell (socket
 `~/.config/herdr/herdr.sock`). Use `herdr status`, `herdr session list`,
 `herdr agent list`, `herdr agent start`, and `herdr --skill`. Attach to the

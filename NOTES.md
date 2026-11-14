@@ -40,7 +40,7 @@ account; it carried devmarchy's caches and a second copy of the home
 directory (6.45 GB), so it was removed.
 
 6. **Herdr and the official Omarchy package repo.** The upstream image did
-   not install `herdr`. Both Dockerfiles download `omarchy-keyring` and
+   not install `herdr`. The Dockerfile downloads `omarchy-keyring` and
    `herdr` from `https://pkgs.omarchy.org/stable/$arch`, verify each file
    against the SHA-256 in the official repo database, and install them
    with `pacman -U`. That avoids `pacman-key --init`, which can stall in
@@ -108,6 +108,27 @@ directory (6.45 GB), so it was removed.
    Omarchy's shell setup and dev-env scripts use it for language runtimes;
    the pacman sync databases; LazyVim plugins and the Mason registry.
 
-   Result: 3.2 GB unpacked, about 1.27 GB compressed on Docker Hub (was
-   6.45 GB / 3.3 GB before any cleanup), well under Docker cloud
-   sandboxes' 3 GiB pull limit without flattening the image.
+   Result (before Chrome): 3.2 GB unpacked, about 1.27 GB compressed on
+   Docker Hub (was 6.45 GB / 3.3 GB before any cleanup). After adding
+   Google Chrome and the agent browser CLIs: about 4.16 GB unpacked and
+   1.78 GB compressed, still under Docker cloud sandboxes' 3 GiB pull
+   limit.
+
+10. **Google Chrome and agent browser CLIs.** `google-chrome` is installed
+    from the AUR (official Google `.deb`, binary `google-chrome-stable`),
+    plus `ttf-liberation` and `ttf-dejavu` for headless rendering.
+    `chrome-devtools-mcp` (which also provides the `chrome-devtools` CLI)
+    and Vercel's `agent-browser` are installed with npm. A wrapper first
+    on PATH (`/usr/local/bin/google-chrome-stable`) adds `--no-sandbox`
+    and `--disable-dev-shm-usage`, because Chrome's setuid sandbox does
+    not work as a non-root user in this container. `agent-browser` is
+    pointed at that wrapper via `AGENT_BROWSER_EXECUTABLE_PATH`; do not
+    run `agent-browser install` (that would download a second Chrome).
+    Default chrome-devtools-mcp settings live in
+    `~/.config/cd4a/config.json` (headless, isolated, the wrapper, no
+    usage statistics). The MCP server is also registered for Claude Code
+    (`~/.claude.json`), Codex (`~/.codex/config.toml`), and Gemini
+    (`~/.gemini/settings.json`). The package's skills are copied into
+    each agent's skills directory. This step runs after yay and before
+    `ENV BASH_ENV`, and cleans pacman, npm, and `~/.cache` in the same
+    RUN.

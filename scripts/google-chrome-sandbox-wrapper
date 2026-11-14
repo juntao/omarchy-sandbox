@@ -1,0 +1,15 @@
+#!/bin/sh
+# Chrome's setuid sandbox does not work as a non-root user in this
+# container. Keep this wrapper first on PATH so CLI tools and agents
+# get working defaults without each caller passing the flags.
+if [ -x /opt/google/chrome/google-chrome ]; then
+  real=/opt/google/chrome/google-chrome
+elif [ -x /usr/bin/google-chrome-stable ]; then
+  real=/usr/bin/google-chrome-stable
+elif [ -x /usr/bin/google-chrome ]; then
+  real=/usr/bin/google-chrome
+else
+  echo "google-chrome is not installed" >&2
+  exit 127
+fi
+exec "$real" --no-sandbox --disable-dev-shm-usage "$@"
