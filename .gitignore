@@ -1,0 +1,5 @@
+build.log
+*.tar
+*.qcow2
+*.iso
+.DS_Store

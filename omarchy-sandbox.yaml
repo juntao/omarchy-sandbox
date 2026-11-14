@@ -1,0 +1,66 @@
+# syntax=docker/sandbox-kit:3
+schemaVersion: "3"
+kind: workload
+displayName: Omarchy sandbox
+description: Headless Omarchy-on-Arch CLI/TUI environment for Docker Sandboxes (no Hyprland desktop). Codex, Claude Code, OpenCode, Gemini, and Copilot CLIs are installed; the default launch is a bash shell.
+
+capabilities:
+  - type: com.docker.sandbox/sbx@1
+
+  - type: com.docker.sandbox/network-policy@1
+    config:
+      runtime:
+        allow:
+          # OpenAI / Codex
+          - api.openai.com
+          - openai.com
+          - chatgpt.com
+          - www.chatgpt.com
+          # GitHub, git over HTTPS, Copilot
+          - github.com
+          - api.github.com
+          - raw.githubusercontent.com
+          - objects.githubusercontent.com
+          - gist.github.com
+          - codeload.github.com
+          - copilot.github.com
+          - api.githubcopilot.com
+          # npm
+          - registry.npmjs.org
+          # Python packages
+          - pypi.org
+          - files.pythonhosted.org
+          # Arch Linux and AUR (hosts used by this image's pacman mirrorlist, plus official AUR)
+          - geo.mirror.pkgbuild.com
+          - fastly.mirror.pkgbuild.com
+          - mirror.pkgbuild.com
+          - archlinux.org
+          - aur.archlinux.org
+          - gitlab.archlinux.org
+
+  - type: com.docker.sandbox/credential@1
+    description: OpenAI API access for Codex CLI
+    config:
+      service: openai
+      phase: runtime
+      apiKey:
+        name: OPENAI_API_KEY
+        proxyManaged: true
+        inject:
+          - domain: api.openai.com
+            header: Authorization
+            format: "Bearer %s"
+          - domain: openai.com
+            header: Authorization
+            format: "Bearer %s"
+          - domain: chatgpt.com
+            header: Authorization
+            format: "Bearer %s"
+          - domain: www.chatgpt.com
+            header: Authorization
+            format: "Bearer %s"
+
+  - type: com.docker.sandbox/agent-context@1
+    config:
+      filename: AGENTS.md
+      contentFile: ./context.md
