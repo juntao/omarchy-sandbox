@@ -94,6 +94,9 @@ RUN chmod 0755 /usr/local/bin/omarchy-sandbox-ensure-herdr \
     && BASH_ENV= /tmp/install-omarchy-repo-and-herdr.sh \
     && rm -f /tmp/install-omarchy-repo-and-herdr.sh
 
+# docker run/exec do not set SHELL. Without it, the auto-started Herdr
+# server opens new panes in /bin/sh instead of bash.
+ENV SHELL=/bin/bash
 USER agent
 WORKDIR /home/agent/workspace
 CMD ["/bin/bash"]

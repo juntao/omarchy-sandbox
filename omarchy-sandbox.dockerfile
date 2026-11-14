@@ -135,6 +135,9 @@ RUN yay -S --noconfirm --answerdiff None --answerclean None claude-code
 RUN git clone https://github.com/LazyVim/starter /home/agent/.config/nvim \
     && nvim --headless "+Lazy! sync" +qa 2>/dev/null || true
 
+# docker run/exec do not set SHELL. Without it, the auto-started Herdr
+# server opens new panes in /bin/sh instead of bash.
+ENV SHELL=/bin/bash
 WORKDIR /home/agent/workspace
 # Shell template: do not set ENTRYPOINT to an agent. Launch Codex with
 #   sbx run codex --template omarchy-sandbox:4.5.0
