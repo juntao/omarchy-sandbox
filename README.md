@@ -1,19 +1,184 @@
 # Omarchy sandbox template
 
-A Docker Sandboxes template that runs **Omarchy as an agent OS**: the same
-CLI/TUI environment agents use on a real Omarchy box, without the Linux
-desktop. The desktop stays for humans. This image is for agents and their
-tools.
+**Omarchy as an agent OS** in a Docker container or a Docker Sandboxes
+(`sbx`) microVM: Omarchy's CLI/TUI environment with Herdr, Tmux, Claude
+Code, Codex, OpenCode, Gemini, and Copilot, without the Hyprland desktop.
 
-Herdr and Tmux both work here. A headless Herdr server starts with the
-shell so agents can create sessions, panes, and other agent CLIs without
-a compositor. Codex, Claude Code, OpenCode, Gemini, and Copilot are
-already installed.
+## Quick start
 
-This is **not** official Omarchy, and it is **not** a full Omarchy install.
-There is no Hyprland UI. See [Limitations](#limitations) before you use it.
+The image is on Docker Hub as
+[`juntaoyuan/omarchy-sandbox`](https://hub.docker.com/r/juntaoyuan/omarchy-sandbox).
 
-The kit lives in this directory:
+### 1. Start the container or sandbox
+
+**Docker container:**
+
+```bash
+docker run -d --name omarchy \
+  -v "$PWD":/home/agent/workspace \
+  juntaoyuan/omarchy-sandbox:4.5.0 \
+  bash -c 'exec sleep infinity'
+```
+
+**sbx sandbox (microVM):**
+
+```bash
+sbx login                     # once: sign in with your Docker account
+sbx policy init balanced      # once: or allow-all / deny-all
+
+cd ~/my-project
+sbx create -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .
+```
+
+### 2. Log in to the container or sandbox
+
+```bash
+docker exec -it omarchy bash -l     # Docker
+sbx exec -it omarchy bash -l        # sbx
+```
+
+You get a bash login shell as user `agent` in `/home/agent/workspace`
+(your project directory). Herdr's server is already running.
+
+### 3. Start Herdr
+
+```bash
+herdr
+```
+
+On first launch Herdr shows a welcome screen; press Enter, then Esc.
+
+### 4. Start Claude Code in Herdr
+
+In the first pane:
+
+```bash
+claude
+```
+
+### 5. Start Codex in another Herdr pane
+
+Press **Ctrl+Space**, then **v** to split the window and open a new pane
+on the right (Ctrl+Space, then **h** opens one below). In the new pane:
+
+```bash
+codex
+```
+
+Claude Code and Codex ask you to sign in or enter an API key the first
+time they run.
+
+From a script or another shell in the container, the same split works
+through the CLI:
+
+```bash
+herdr pane list                                  # find a pane id, e.g. w1:p1
+herdr pane split w1:p1 --direction right         # prints the new pane id, e.g. w1:p2
+herdr pane run w1:p2 codex
+```
+
+### Useful Herdr keys
+
+Omarchy's Herdr config uses **Ctrl+Space** as the prefix:
+
+| Keys | Action |
+| --- | --- |
+| Ctrl+Space, v | Split; new pane on the right |
+| Ctrl+Space, h | Split; new pane below |
+| Ctrl+Alt+arrow | Move focus between panes |
+| Ctrl+Space, x | Close pane |
+| Ctrl+Space, z | Zoom pane |
+| Ctrl+Space, c | New tab |
+| Ctrl+Space, d | Detach (Herdr and your panes keep running) |
+| Ctrl+Space, ? | Help |
+
+Run `herdr` again to re-attach.
+
+### Stop and clean up
+
+```bash
+docker rm -f omarchy                # Docker
+sbx stop omarchy; sbx rm omarchy    # sbx
+```
+
+## How Herdr runs here
+
+**Herdr lives inside the container or sandbox, not on the host.** The server
+listens on a Unix socket inside it, `/home/agent/.config/herdr/herdr.sock`.
+Every `herdr` command, including the TUI, must run inside, so get a shell
+there first. A `herdr` binary on the host cannot see that socket, and Herdr
+does not listen on the network.
+
+The server is started by `/etc/sandbox-env.sh`, which bash reads through
+`BASH_ENV` or the login and interactive startup files. So the first **bash**
+process inside starts it. That is why the Docker command above keeps the
+container alive with `bash -c 'exec sleep infinity'`. A command that is
+not run through bash, such as `docker exec omarchy herdr status server`,
+does not start it and reports `status: not running` until some bash has run.
+
+```bash
+herdr status server     # status: running, socket: /home/agent/.config/herdr/herdr.sock
+herdr session list      # default  running  ...
+herdr agent list
+herdr --skill           # agent skill file
+docker exec omarchy bash -c 'herdr status server --json'    # from the host
+sbx exec omarchy bash -c 'herdr status server --json'       # from the host
+```
+
+Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the server auto-started.
+The Herdr desktop app (`herdr-app`) and Hyprland theme sync are not
+installed. Super keybindings (`Super + Ctrl + Return`, and so on) are not
+available.
+
+Tmux is also installed with Omarchy's config (`tmux new-session -s work`).
+Herdr and Omarchy's Tmux config both use **Ctrl+Space** as the prefix. Run
+one or the other in a terminal, not Herdr inside Tmux (or the reverse),
+unless you change one prefix.
+
+## More ways to get a shell
+
+**Docker:**
+
+```bash
+docker exec -it -u root omarchy bash               # root (or use sudo as agent)
+docker run -it --rm juntaoyuan/omarchy-sandbox:4.5.0   # throwaway interactive shell
+```
+
+The image's default user is already `agent`, so `-u agent` is not needed.
+
+**sbx:**
+
+```bash
+sbx run -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .   # create, start, and open a shell in one step
+sbx run --name omarchy        # re-attach to the sandbox's shell session
+sbx exec -u root omarchy bash # root
+sbx ls                        # list sandboxes
+```
+
+`sbx` pulls `--template` images from the registry by default. On Linux, the
+user running `sbx` needs read/write access to `/dev/kvm` (usually the `kvm`
+group, active in the shell that starts the `sbx` daemon).
+
+## What is in the image
+
+| Item | Value |
+| --- | --- |
+| User | `agent`, UID/GID 1000, home `/home/agent` |
+| Workdir | `/home/agent/workspace` |
+| Omarchy | v4.5.0 (commit `ac2690c`); `omarchy-version` prints `dev (ac2690c)` |
+| `omarchy` | on PATH for login, non-interactive, and interactive bash |
+| herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
+| Claude Code | `claude` 2.1.325 |
+| Codex CLI | `codex-cli 0.169.0` |
+| tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
+| nvim | v0.12.6 (LazyVim) |
+| lazygit | 0.66.3 |
+| starship | 1.27.0 |
+| git | 2.56.1 |
+
+Also installed: fastfetch, yay, `opencode`, `gemini`, and `copilot`.
+
+The kit:
 
 ```text
 omarchy-sandbox/
@@ -25,217 +190,7 @@ omarchy-sandbox/
 └── README.md
 ```
 
-The image is published on Docker Hub as
-[`juntaoyuan/omarchy-sandbox`](https://hub.docker.com/r/juntaoyuan/omarchy-sandbox)
-(public, linux/amd64), tags `4.5.0` and `latest`, digest
-`sha256:3d84bcdd0b48e5360a0b3d80e512207aa3ac56d38fab327ef8ccc274005c5bdd`
-(about 3.5 GB compressed, 6.45 GB unpacked). Pull it rather than building
-it or copying a tarball:
-
-```bash
-docker pull juntaoyuan/omarchy-sandbox:4.5.0
-```
-
-A local build from this kit is tagged `omarchy-sandbox:4.5.0`; use that
-name in the commands below if you built it yourself.
-
-## Limitations
-
-- **CLI/TUI only.** Hyprland, a GPU, systemd, Limine, Btrfs, SDDM, and uwsm
-  are not in this image. Many `omarchy-*` desktop and hardware commands will
-  fail.
-- **Docker's kernel, not Omarchy's.** Docker Sandboxes still boots Docker's
-  microVM kernel. This template only changes the userland (packages, configs,
-  and CLIs).
-- **linux/amd64 and large.** The image is about **6.42 GB**. On Apple Silicon
-  it will run under emulation, if it runs at all, and the desktop still will
-  not be present.
-- **Verified with plain Docker; `sbx` only partly verified.** The image
-  (pulled from Docker Hub), Herdr, and Tmux were tested with `docker run` /
-  `docker exec` (see
-  [Get a shell](#get-a-shell-in-the-container-or-sandbox)). With `sbx`
-  v0.53.0, `sbx login`, `sbx template load`, and `sbx create` worked, but the
-  test machine (itself a VM) could not boot any sandbox microVM, not even
-  the stock `shell` agent. So Herdr inside an `sbx` sandbox has not been
-  tested yet. Confirm on a machine where `sbx run shell` works.
-- **Network allow-list (v3 kit only).** `omarchy-sandbox.yaml` allows a fixed
-  set of hosts (OpenAI, GitHub, npm, PyPI, Arch/AUR mirrors). Other hosts are
-  blocked when you launch the kit with `sbx run ./omarchy-sandbox`. The
-  `--template` path with built-in agents (`sbx run codex` or `sbx run shell`)
-  uses those agents' own network and credential policies instead of this
-  kit's list.
-- **LazyVim** was installed with a best-effort headless sync. It may need a
-  first-run update inside the sandbox.
-- **No Docker Engine inside the image.** There is no nested Docker daemon.
-- The fast local build may contain an **empty leftover `/home/devmarchy`
-  directory**. It is not the live home (the account is `agent` at
-  `/home/agent`). A standalone rebuild does not have this leftover.
-
-## What is in the image
-
-Smoke-tested with `docker run --rm juntaoyuan/omarchy-sandbox:4.5.0 bash -lc '...'` and
-`bash -c` / `bash -ic`:
-
-| Item | Value |
-| --- | --- |
-| User | `agent`, UID/GID 1000, home `/home/agent` |
-| Workdir | `/home/agent/workspace` |
-| Omarchy | v4.5.0 (commit `ac2690c`); `omarchy-version` prints `dev (ac2690c)` |
-| `omarchy` | on PATH for login, non-interactive, and interactive bash |
-| Codex CLI | `codex-cli 0.169.0` (`/usr/sbin/codex`) |
-| nvim | v0.12.6 (LazyVim) |
-| tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
-| herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
-| lazygit | 0.66.3 |
-| starship | 1.27.0 |
-| git | 2.56.1 |
-
-Also installed: fastfetch, yay, `claude`, `opencode`, `gemini`, and `copilot`.
-
-## Herdr and Tmux
-
-This image is meant to run agents, not to impersonate the Omarchy desktop.
-Super keybindings (`Super + Ctrl + Return`, and so on) are not available.
-Use the CLIs.
-
-**Herdr lives inside the container or sandbox, not on the host.** The server
-listens on a Unix socket inside it, `/home/agent/.config/herdr/herdr.sock`.
-Every `herdr` command (including the TUI) must run inside, so first get a
-shell there (next section). A `herdr` binary on the host cannot see that
-socket, and Herdr does not listen on the network.
-
-The server is started by `/etc/sandbox-env.sh`, which bash reads through
-`BASH_ENV` or the login and interactive startup files. So the first **bash**
-process inside starts it. A command that is not run through bash, such as
-`docker exec omarchy herdr status server`, does not start it and reports
-`status: not running` until some bash has run.
-
-```bash
-# Herdr: a headless server is started from BASH_ENV on first shell
-herdr status server
-herdr session list
-herdr agent list
-herdr --skill          # agent skill file
-herdr                  # attach to the persistent session (needs a TTY)
-                       # detach again with Ctrl+Space, then d
-
-# Tmux, with Omarchy's config already in ~/.config/tmux
-tmux new-session -s work
-```
-
-Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the server auto-started.
-
-Herdr and Omarchy's Tmux config both use `Ctrl + Space` as the prefix. Run
-one or the other in a terminal, not Herdr inside Tmux (or the reverse),
-unless you change one prefix.
-
-## Get a shell in the container or sandbox
-
-### Plain Docker (verified)
-
-Start a long-running container, then open shells in it with `docker exec`.
-Wrap the keep-alive command in `bash -c` so `BASH_ENV` starts the Herdr
-server when the container starts:
-
-```bash
-docker run -d --name omarchy \
-  -v "$PWD":/home/agent/workspace \
-  juntaoyuan/omarchy-sandbox:4.5.0 \
-  bash -c 'exec sleep infinity'
-
-docker exec -it omarchy bash -l      # interactive shell as `agent`
-```
-
-Inside that shell:
-
-```bash
-herdr status server         # status: running, socket: /home/agent/.config/herdr/herdr.sock
-herdr session list          # default  running  ...
-herdr                       # full TUI; Ctrl+Space then d detaches, workspaces persist
-tmux new-session -s work    # Omarchy tmux config
-```
-
-Or run one command without an interactive shell:
-
-```bash
-docker exec omarchy bash -c 'herdr status server --json'
-```
-
-The image's default user is already `agent`, so `-u agent` is optional.
-Use `docker exec -it -u root omarchy bash` for root (or `sudo` as `agent`).
-Remove the container when you are done:
-
-```bash
-docker rm -f omarchy
-```
-
-`docker run -it --rm juntaoyuan/omarchy-sandbox:4.5.0` also works for a throwaway
-interactive shell; Herdr's server stops with the container.
-
-Tested on Docker Engine (Linux, amd64), with the image pulled from Docker
-Hub and with a local build: the server was running after
-`docker run -d ... bash -c 'exec sleep infinity'`; `herdr status server
---json` returned `"running":true`, `"version":"0.9.5"`; `herdr session list`
-showed `default running`; the `herdr` TUI rendered over `docker exec -it`,
-new panes opened bash, and `Ctrl+Space d` detached with the workspace kept;
-a detached Tmux session ran commands; `codex`, `claude`, `opencode`,
-`gemini`, `copilot`, `nvim`, `lazygit`, and `omarchy` were all on PATH.
-
-### Docker Sandboxes (`sbx`)
-
-One-time host setup (both were done and worked with `sbx` v0.53.0):
-
-```bash
-sbx login                      # Docker account; device-code sign-in in the browser
-sbx policy init balanced       # or allow-all / deny-all; required before the first sandbox
-```
-
-Create a shell sandbox from the Docker Hub image, then attach or exec into
-it:
-
-```bash
-cd ~/my-project
-sbx run -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .     # creates, starts, and opens a shell
-```
-
-Or create it first and open shells separately:
-
-```bash
-sbx create -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .
-sbx exec -it omarchy bash -l                  # interactive shell
-sbx exec omarchy bash -c 'herdr status server'
-sbx run --name omarchy                        # re-attach to the agent session
-sbx ls                                        # list sandboxes
-sbx stop omarchy                              # stop; sbx rm omarchy to delete
-```
-
-Inside, use Herdr exactly as in the Docker section (`herdr status server`,
-`herdr`, `Ctrl+Space d`). `sbx` pulls `--template` images from the registry
-by default, so the Hub image needs no extra step.
-
-**Offline: load a tarball instead of pulling.** `sbx` keeps its own image
-store, separate from Docker's, so a `docker image load` is not visible to
-it. Load the tarball into `sbx` and pass `--pull never`:
-
-```bash
-sbx template load omarchy-sandbox.tar     # took about 20 s for the 6 GB image
-sbx template ls                           # docker.io/library/omarchy-sandbox  4.5.0
-sbx create --pull never -t omarchy-sandbox:4.5.0 --name omarchy shell .
-```
-
-**What was verified.** `sbx login`, `sbx policy init`, `sbx template load`,
-`sbx template ls`, `sbx create --pull never` (from the loaded tarball),
-`sbx ls`, and `sbx rm` all worked. Creating straight from the Docker Hub
-reference was not tried in `sbx`, though `docker pull` of it works. Starting
-the sandbox (`sbx run` / `sbx exec`) did not: on the test machine, which is
-itself a cloud VM, the microVM never booted, and a stock
-`sbx run -d shell .` (no custom template) hung the same way. That is a host
-limit, not this image, but it means Herdr inside `sbx` is still untested.
-On Linux, the user running `sbx` needs read/write access to `/dev/kvm`
-(usually membership in the `kvm` group, active in the shell that starts the
-`sbx` daemon); otherwise the daemon logs `KVM error: Permission denied`.
-
-## Build or load the image
+## Get or build the image
 
 ### Option A — pull from Docker Hub (recommended)
 
@@ -243,27 +198,30 @@ On Linux, the user running `sbx` needs read/write access to `/dev/kvm`
 docker pull juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
-`sbx run -t juntaoyuan/omarchy-sandbox:4.5.0 ...` pulls it on its own.
+Tags `4.5.0` and `latest` (linux/amd64, about 3.5 GB compressed). `sbx run`
+and `sbx create` with `-t juntaoyuan/omarchy-sandbox:4.5.0` pull it on
+their own.
 
 ### Option B — move a saved image (tarball, offline)
 
-On the machine that already has the image:
+On a machine that has the image:
 
 ```bash
 docker image save omarchy-sandbox:4.5.0 -o omarchy-sandbox.tar
 ```
 
-Copy the tarball to the other machine, then load it where you need it:
+Copy the tarball over, then load it where you need it:
 
 ```bash
-docker image load -i omarchy-sandbox.tar     # plain Docker (docker run)
-sbx template load omarchy-sandbox.tar        # Docker Sandboxes (sbx run -t)
+docker image load -i omarchy-sandbox.tar     # plain Docker
+sbx template load omarchy-sandbox.tar        # Docker Sandboxes
+sbx create --pull never -t omarchy-sandbox:4.5.0 --name omarchy shell .
 ```
 
-The tarball is only for machines that cannot pull from Docker Hub. Plain
-Docker never needs it when you can pull or build. `sbx` reads templates
-from its own store, which is why the offline path is `sbx template load`
-plus `--pull never`.
+The tarball is only for machines that cannot pull from Docker Hub; plain
+Docker never needs it when you can pull or build. `sbx` keeps its own image
+store, separate from Docker's, so it needs `sbx template load` plus
+`--pull never`.
 
 **Do not commit the tarball to git.** It is about 6 GB, GitHub rejects any
 file over 100 MB, and `*.tar` is in `.gitignore`. Share new versions by
@@ -276,7 +234,7 @@ docker push juntaoyuan/omarchy-sandbox:4.5.0
 docker push juntaoyuan/omarchy-sandbox:latest
 ```
 
-### Option C — rebuild from this kit (no pre-built image required)
+### Option C — rebuild from this kit
 
 ```bash
 docker build -f omarchy-sandbox.dockerfile \
@@ -285,86 +243,62 @@ docker build -f omarchy-sandbox.dockerfile \
 ```
 
 This starts from `archlinux:base-devel` and takes a while (pacman, npm,
-AUR/yay, LazyVim).
+AUR/yay, LazyVim). The `Dockerfile` in this directory is a faster adapter
+that starts `FROM devmarchy:4.5.0`; use it only when that image is already
+present. A local build is tagged `omarchy-sandbox:4.5.0`; use that name in
+place of `juntaoyuan/omarchy-sandbox:4.5.0` in the commands above.
 
-The `Dockerfile` in this directory is a faster adapter that starts
-`FROM devmarchy:4.5.0`. Use it only when that image is already present.
+## Agent credentials
 
-## Run Codex in this sandbox (preferred)
+### sbx: keep keys on the host
 
-Store OpenAI credentials **on the host**, never in the image.
+Store OpenAI credentials **on the host**, never in the image:
 
 ```bash
-# API key (prompted; not written into the image or this repo)
-sbx secret set openai
-
-# or ChatGPT login; the browser runs on the host
-sbx secret set openai --oauth
+sbx secret set openai           # API key (prompted)
+sbx secret set openai --oauth   # or ChatGPT login; the browser runs on the host
 ```
 
-Then, from a project directory:
+Then run Codex as the sandbox agent, from a project directory:
 
 ```bash
 sbx run codex --template juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
-For a tarball you loaded with `sbx template load`, use
-`--pull never --template omarchy-sandbox:4.5.0` instead.
-
 The built-in `codex` agent keeps its own launch command and credential
-proxy. This template only replaces the OS and tool image. Codex is already
-installed in the image, which that path requires.
+proxy; this template only replaces the OS and tool image. OAuth or browser
+login **inside** a plain `shell` sandbox usually fails, and proxy-managed
+credentials may not be injected there unless you launch the v3 kit below.
 
-## Shell sandbox, then run `codex` yourself
+### v3 kit path
 
-```bash
-sbx run shell --template juntaoyuan/omarchy-sandbox:4.5.0
-# inside the sandbox:
-codex
-```
-
-OAuth or browser login **inside** the sandbox usually fails. Proxy-managed
-OpenAI credentials are set up automatically for `sbx run codex`. They may
-**not** be injected in a plain shell sandbox unless you launch the v3 kit
-(next section), which declares the `openai` credential. You will be asked
-to approve the kit's use of the stored key.
-
-## v3 kit path
-
-From this directory (or after a `docker buildx` publish of the kit):
+From this directory:
 
 ```bash
 sbx secret set openai    # once, on the host
 sbx run --name omarchy-sandbox ./omarchy-sandbox
 ```
 
-The default launch is bash (`CMD ["/bin/bash"]`; there is no agent
-`ENTRYPOINT`). Then run `codex` inside. Because the kit declares a
-proxy-managed `openai` credential, approve the binding when prompted so
-requests to `api.openai.com` (and the other listed OpenAI hosts) can have
-`Authorization: Bearer …` injected on the host. The real key stays on the
-host.
+The default launch is bash (`CMD ["/bin/bash"]`; no agent `ENTRYPOINT`).
+Run `codex` inside. The kit declares a proxy-managed `openai` credential:
+approve the binding when prompted so requests to `api.openai.com` (and the
+other listed OpenAI hosts) get `Authorization: Bearer …` injected on the
+host. The real key stays on the host. Hosts not in the kit's allow-list are
+blocked on this path; add more to `omarchy-sandbox.yaml` if pacman, yay, or
+git need them.
 
-Hosts not in the kit's allow-list are blocked on this path. Add more hosts
-to `omarchy-sandbox.yaml` if pacman, yay, or git need them.
-
-## Plain Docker (not a sandbox)
-
-See [Get a shell](#get-a-shell-in-the-container-or-sandbox) for the
-long-running container workflow. For a one-off Codex session:
+### Plain Docker
 
 ```bash
 docker run -it --rm \
   -e OPENAI_API_KEY \
   -v "$PWD":/home/agent/workspace \
-  -w /home/agent/workspace \
   juntaoyuan/omarchy-sandbox:4.5.0
 # then:
 codex
 ```
 
 This puts the API key **inside the container**, unlike `sbx run codex`.
-Prefer the sandbox commands above when you can.
 
 ## Persistent environment
 
@@ -372,3 +306,26 @@ Use `/etc/sandbox-persistent.sh` for exports that later Bash sessions need.
 Login, interactive, and non-interactive shells source it through
 `/etc/sandbox-env.sh` (`BASH_ENV` is set). That wrapper also starts the
 Herdr server. Do not put shell completion in either file.
+
+## Limitations
+
+This is **not** official Omarchy, and it is **not** a full Omarchy install.
+
+- **CLI/TUI only.** Hyprland, a GPU, systemd, Limine, Btrfs, SDDM, and uwsm
+  are not in this image. Many `omarchy-*` desktop and hardware commands will
+  fail.
+- **Docker's kernel, not Omarchy's.** Docker Sandboxes still boots Docker's
+  microVM kernel. This template only changes the userland (packages, configs,
+  and CLIs).
+- **linux/amd64 and large.** The image is about **6.45 GB** unpacked.
+- **Network allow-list (v3 kit only).** `omarchy-sandbox.yaml` allows a fixed
+  set of hosts (OpenAI, GitHub, npm, PyPI, Arch/AUR mirrors). Other hosts are
+  blocked when you launch the kit with `sbx run ./omarchy-sandbox`. The
+  `--template` path with built-in agents (`sbx run codex` or `sbx run shell`)
+  uses those agents' own network and credential policies instead.
+- **LazyVim** was installed with a best-effort headless sync. It may need a
+  first-run update inside the sandbox.
+- **No Docker Engine inside the image.** There is no nested Docker daemon.
+- The fast local build may contain an **empty leftover `/home/devmarchy`
+  directory**. It is not the live home (the account is `agent` at
+  `/home/agent`). A standalone rebuild does not have this leftover.
