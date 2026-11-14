@@ -30,15 +30,31 @@ cd ~/my-project
 sbx create -t juntaoyuan/omarchy-sandbox:4.5.0 --name omarchy shell .
 ```
 
+**Docker cloud sandbox** (runs on Docker's cloud, after the same
+`sbx login`):
+
+```bash
+sbx --cloud run --detach \
+  --image-ref docker.io/juntaoyuan/omarchy-sandbox:4.5.0 \
+  --cpus 2 --memory 4g --ttl 2h \
+  --name omarchy
+```
+
+`--cpus 2 --memory 4g` is the "small" size; cloud sandboxes are billed by
+size and time, and `--ttl 2h` times this one out after two hours. No host folder
+is mounted, so clone your repos inside the sandbox.
+
 ### 2. Log in to the container or sandbox
 
 ```bash
-docker exec -it omarchy bash -l     # Docker
-sbx exec -it omarchy bash -l        # sbx
+docker exec -it omarchy bash -l          # Docker
+sbx exec -it omarchy bash -l             # sbx
+sbx --cloud exec -it omarchy bash -l     # Docker cloud sandbox
 ```
 
 You get a bash login shell as user `agent` in `/home/agent/workspace`
-(your project directory). Herdr's server is already running.
+(your project directory, or an empty folder in a cloud sandbox). Herdr's
+server is already running.
 
 ### 3. Start Herdr
 
@@ -99,6 +115,8 @@ Run `herdr` again to re-attach.
 ```bash
 docker rm -f omarchy                # Docker
 sbx stop omarchy; sbx rm omarchy    # sbx
+sbx --cloud rm -f omarchy           # Docker cloud sandbox
+sbx --cloud ls                      # check nothing is left running
 ```
 
 ## How Herdr runs here
@@ -198,7 +216,7 @@ omarchy-sandbox/
 docker pull juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
-Tags `4.5.0` and `latest` (linux/amd64, about 3.5 GB compressed). `sbx run`
+Tags `4.5.0` and `latest` (linux/amd64, about 1.6 GB compressed). `sbx run`
 and `sbx create` with `-t juntaoyuan/omarchy-sandbox:4.5.0` pull it on
 their own.
 
@@ -223,7 +241,7 @@ Docker never needs it when you can pull or build. `sbx` keeps its own image
 store, separate from Docker's, so it needs `sbx template load` plus
 `--pull never`.
 
-**Do not commit the tarball to git.** It is about 6 GB, GitHub rejects any
+**Do not commit the tarball to git.** It is about 3.6 GB, GitHub rejects any
 file over 100 MB, and `*.tar` is in `.gitignore`. Share new versions by
 pushing to Docker Hub:
 
@@ -317,7 +335,7 @@ This is **not** official Omarchy, and it is **not** a full Omarchy install.
 - **Docker's kernel, not Omarchy's.** Docker Sandboxes still boots Docker's
   microVM kernel. This template only changes the userland (packages, configs,
   and CLIs).
-- **linux/amd64 and large.** The image is about **6.45 GB** unpacked.
+- **linux/amd64 and large.** The image is about **3.6 GB** unpacked.
 - **Network allow-list (v3 kit only).** `omarchy-sandbox.yaml` allows a fixed
   set of hosts (OpenAI, GitHub, npm, PyPI, Arch/AUR mirrors). Other hosts are
   blocked when you launch the kit with `sbx run ./omarchy-sandbox`. The
