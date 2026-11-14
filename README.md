@@ -128,6 +128,56 @@ sbx --cloud rm -f omarchy           # Docker cloud sandbox
 sbx --cloud ls                      # check nothing is left running
 ```
 
+## Why Omarchy for agents
+
+A regular Linux install gives an agent a shell, a filesystem, and a package
+manager. Those are necessary, but the rest of the system is usually meant
+for a person: settings live in menus, toolchains are assembled by hand, and
+there is no shared way for an agent to discover how the machine is supposed
+to be changed.
+
+Omarchy is an Arch-based environment built so those same settings are
+commands and files. The `omarchy` CLI and the `omarchy-*` tools on PATH are
+ordinary programs. An agent can list and install packages, set default apps,
+add a language toolchain with `omarchy install dev-env <lang>`, and attach
+scripts to system events with `omarchy hook`. Configuration is plain text
+under `~/.config/`, so the agent can read it, patch it, and check the result
+with another command.
+
+Omarchy also ships an [`omarchy` skill](https://omarchy.org/manual/ai/) that
+tells coding agents how to use that CLI and those files. This image links
+the skill into Claude Code, Codex, and Gemini, so they see it next to the
+Chrome DevTools skills.
+
+The image includes the agent stack as well: Claude Code, Codex, OpenCode,
+Gemini, and Copilot, plus Herdr, Tmux, Neovim, and a Chrome the agents can
+drive from the shell. A stock Linux image leaves that assembly to you or to
+the agent.
+
+## Why Docker Sandboxes
+
+An agent OS still needs a boundary. Coding agents are not deterministic, and
+they are most useful with a real computer: a shell, a package manager, a
+browser, and network access. Running that on a shared workstation is a
+risk. [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) (`sbx`)
+puts the agent OS in a [microVM](https://docs.docker.com/ai/sandboxes/architecture/)
+with its own kernel. A Linux container shares the host kernel.
+
+Network access starts from a
+[deny-by-default policy](https://docs.docker.com/ai/sandboxes/security/).
+You pick a preset (`balanced`, `allow-all`, or `deny-all`) or write a
+tighter policy for what the sandbox may reach or mount.
+[Credentials stay on the host](https://docs.docker.com/ai/sandboxes/configuration/credentials/)
+and are injected through a proxy. They are not copied into the virtual
+machine the way `docker run -e` puts an API key inside a container.
+
+The Omarchy image is a normal Docker image, and `sbx create` and `sbx run`
+can use it as a template. The same CLI starts a
+[local sandbox](https://docs.docker.com/ai/sandboxes/get-started/) on your
+machine or a [cloud sandbox](https://docs.docker.com/ai/sandboxes/cloud/)
+on Docker's cloud. A local sandbox can also reach models on your machine
+through [Docker Model Runner](https://docs.docker.com/ai/model-runner/).
+
 ## How Herdr runs here
 
 **Herdr lives inside the container or sandbox, not on the host.** The server
