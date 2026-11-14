@@ -49,7 +49,9 @@ is mounted, so clone your repos inside the sandbox.
 
 ```bash
 docker exec -it omarchy bash -l          # Docker
+
 sbx exec -it omarchy bash -l             # sbx
+
 sbx --cloud exec -it omarchy bash -l     # Docker cloud sandbox
 ```
 
@@ -115,7 +117,9 @@ Run `herdr` again to re-attach.
 
 ```bash
 docker rm -f omarchy                # Docker
+
 sbx stop omarchy; sbx rm omarchy    # sbx
+
 sbx --cloud rm -f omarchy           # Docker cloud sandbox
 sbx --cloud ls                      # check nothing is left running
 ```
@@ -131,17 +135,13 @@ does not listen on the network.
 The server is started by `/etc/sandbox-env.sh`, which bash reads through
 `BASH_ENV` or the login and interactive startup files. The first **bash**
 process inside starts it, including the interactive bash that
-`docker run -dit` uses as the main process. A command that is not run
-through bash, such as `docker exec omarchy herdr status server`, does not
-start it and reports `status: not running` until some bash has run.
+`docker run -dit` uses as the main process.
 
 ```bash
 herdr status server     # status: running, socket: /home/agent/.config/herdr/herdr.sock
 herdr session list      # default  running  ...
 herdr agent list
 herdr --skill           # agent skill file
-docker exec omarchy bash -c 'herdr status server --json'    # from the host
-sbx exec omarchy bash -c 'herdr status server --json'       # from the host
 ```
 
 Set `OMARCHY_SANDBOX_SKIP_HERDR=1` if you do not want the server auto-started.
