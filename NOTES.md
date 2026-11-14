@@ -12,9 +12,9 @@ Fixes applied:
 
 2. **User account.** Upstream uses `devmarchy` with home `/home/devmarchy`.
    This template uses `agent` / UID 1000 / `/home/agent` as required by
-   Docker Sandboxes. The fast `Dockerfile` starts FROM `devmarchy:4.5.0` and
-   renames the account with `usermod`/`groupmod`. Upstream `ARG USERNAME`
-   was not enough on its own because `OMARCHY_PATH` was hardcoded.
+   Docker Sandboxes. The `Dockerfile` creates that account directly.
+   Upstream `ARG USERNAME` was not enough on its own because `OMARCHY_PATH`
+   was hardcoded.
 
 3. **PATH / `omarchy` CLI.** Upstream set `PATH="$OMARCHY_PATH/bin:..."` in
    the same `ENV` instruction that defined `OMARCHY_PATH`. Docker expands
@@ -34,23 +34,10 @@ Fixes applied:
    workspace and XDG-style dirs created; `WORKDIR /home/agent/workspace`;
    `CMD ["/bin/bash"]` with no agent ENTRYPOINT.
 
-The local image `omarchy-sandbox:4.5.0` was built from `Dockerfile` (the
-FROM-devmarchy adapter) so pacman/yay/npm/nvim layers did not have to be
-rebuilt. Use `omarchy-sandbox.dockerfile` to rebuild from
-`archlinux:base-devel` on another machine.
-
-## Image size and leftover empty home
-
-The local image built FROM `devmarchy:4.5.0` is about 6.42 GB, roughly 1.1 GB
-larger than the 5.3 GB base. Moving `/home/devmarchy` to `/home/agent` copies
-the home tree into a new overlay layer.
-
-An empty `/home/devmarchy` directory may still appear in that image because of
-an overlay whiteout quirk on this builder. It is not the live home: `/etc/passwd`
-points at `/home/agent`, there are no `devmarchy` references in passwd, group,
-or sudoers, and the directory is empty. The standalone Dockerfile creates
-`/home/agent` from the start and does not have this leftover; rebuilding with
-it also avoids the extra 1.1 GB copy-up.
+The image is built from `Dockerfile`, starting at `archlinux:base-devel`.
+An earlier fast adapter built `FROM devmarchy:4.5.0` and renamed the
+account; it carried devmarchy's caches and a second copy of the home
+directory (6.45 GB), so it was removed.
 
 6. **Herdr and the official Omarchy package repo.** The upstream image did
    not install `herdr`. Both Dockerfiles download `omarchy-keyring` and
@@ -73,11 +60,54 @@ it also avoids the extra 1.1 GB copy-up.
    to skip the auto-start.
 
 
-8. **BASH_ENV re-entry guard.** `ENV BASH_ENV=/etc/sandbox-env.sh` is inherited
-   by every later Dockerfile `RUN` that uses bash, and by the ensure-herdr
-   helper itself. Without a guard, that helper re-enters through `BASH_ENV`
-   and fork-loops. `sandbox-env.sh` returns immediately when
-   `OMARCHY_SANDBOX_ENV_SOURCED` is set; the helper sets
-   `OMARCHY_SANDBOX_ENSURE_HERDR_RUNNING`; and the install `RUN` invokes the
-   package script as `BASH_ENV= /tmp/install-omarchy-repo-and-herdr.sh` so
-   the build cannot inherit the hook.
+8. **BASH_ENV re-entry guard.** With `BASH_ENV=/etc/sandbox-env.sh` set,
+   every bash process, including the ensure-herdr helper itself, sources
+   that file. Without a guard, the helper re-enters through `BASH_ENV` and
+   fork-loops. `sandbox-env.sh` returns immediately when
+   `OMARCHY_SANDBOX_ENV_SOURCED` is set, and the helper sets
+   `OMARCHY_SANDBOX_ENSURE_HERDR_RUNNING`. `ENV BASH_ENV` is the last
+   setting in the `Dockerfile`, so no build step (makepkg, yay, and nvim are
+   bash scripts) inherits it or starts a Herdr server during the build.
+
+9. **Cleanup policy: nothing temporary is ever committed to a layer.**
+   Deleting files in a later step does not shrink an image; the earlier
+   layer still carries them. So every `RUN` that downloads or builds
+   something cleans up in the same `RUN`:
+
+   | Step | Cleaned in the same RUN |
+   | --- | --- |
+   | `pacman -Syu` / `-S` | `pacman -Scc`, `/var/cache/pacman/pkg/*`, `/tmp/*` |
+   | Herdr install script | `pacman -Scc`, its temp dir, `/tmp/*` |
+   | `npm install -g` | `npm cache clean --force`, `/root/.npm`, `/root/.cache`, `/tmp/*` |
+   | yay-bin (`makepkg -si`) | build dir, `~/.cache`, `pacman -Scc` |
+   | `yay -S claude-code` | `--cleanafter`, `~/.cache` (yay build dir), `pacman -Scc` |
+   | LazyVim sync | `~/.cache` (tree-sitter sources, bytecode cache), `/tmp/*` |
+
+   Not installed or not kept at all:
+
+   - **Theme media.** Omarchy's `themes/*/backgrounds` (wallpapers and
+     intro videos) and theme preview images, about 160 MB, are only used by
+     the Hyprland desktop. The text theme files stay.
+   - **Omarchy `.git`.** Even a depth-1 clone stores another copy of every
+     file (~174 MB). The tag and commit are written to
+     `/etc/omarchy-sandbox-release`; `omarchy-version` prints `dev`.
+   - **LazyVim starter `.git`.** The starter is meant to become your own
+     config. Plugin checkouts under `~/.local/share/nvim/lazy` keep their
+     git data so `:Lazy update` works.
+   - **`-debug` packages.** makepkg's `debug` option is turned off in
+     `/etc/makepkg.conf` (yay-bin used to bring in `yay-bin-debug`).
+   - **opencode's unused binary.** npm installs both `opencode-linux-x64`
+     and `-baseline` (~205 MB each). After opencode's postinstall runs
+     (npm skipped it, which left `opencode` broken), the one it did not
+     link is deleted.
+   - **man-db.** The Arch base image's `NoExtract` never installs man
+     pages, so `man` had nothing to show. `tldr` and `--help` remain.
+
+   Kept on purpose: base-devel (gcc, make, and gdb via debugedit) so agents
+   can compile code and build AUR packages; `mise` (157 MB) because
+   Omarchy's shell setup and dev-env scripts use it for language runtimes;
+   the pacman sync databases; LazyVim plugins and the Mason registry.
+
+   Result: 3.2 GB unpacked, about 1.27 GB compressed on Docker Hub (was
+   6.45 GB / 3.3 GB before any cleanup), well under Docker cloud
+   sandboxes' 3 GiB pull limit without flattening the image.

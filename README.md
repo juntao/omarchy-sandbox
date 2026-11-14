@@ -183,7 +183,7 @@ group, active in the shell that starts the `sbx` daemon).
 | --- | --- |
 | User | `agent`, UID/GID 1000, home `/home/agent` |
 | Workdir | `/home/agent/workspace` |
-| Omarchy | v4.5.0 (commit `ac2690c`); `omarchy-version` prints `dev (ac2690c)` |
+| Omarchy | v4.5.0 (commit `ac2690c`, recorded in `/etc/omarchy-sandbox-release`); `omarchy-version` prints `dev` |
 | `omarchy` | on PATH for login, non-interactive, and interactive bash |
 | herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
 | Claude Code | `claude` 2.1.325 |
@@ -194,14 +194,25 @@ group, active in the shell that starts the `sbx` daemon).
 | starship | 1.27.0 |
 | git | 2.56.1 |
 
-Also installed: fastfetch, yay, `opencode`, `gemini`, and `copilot`.
+Also installed: `opencode`, `gemini`, `copilot`, base-devel (gcc, make),
+mise, yay, fastfetch, ripgrep, fd, fzf, bat, eza, zoxide, jq, and tldr.
+
+Left out on purpose, because a headless agent OS does not use them:
+
+- Omarchy's theme wallpapers, intro videos, and preview images (only the
+  Hyprland desktop shows them; the text theme files stay) and the Omarchy
+  clone's `.git` (another full copy of those files).
+- Man pages. The Arch base image never extracts them, so `man-db` is not
+  installed; use `tldr <cmd>` or `<cmd> --help`.
+- Package and build caches (pacman, npm, yay/makepkg, nvim) and `-debug`
+  packages; makepkg's `debug` option is off.
+- opencode's second, unused platform binary.
 
 The kit:
 
 ```text
 omarchy-sandbox/
-├── Dockerfile                     # fast build FROM a local devmarchy:4.5.0 image
-├── omarchy-sandbox.dockerfile     # standalone rebuild from archlinux:base-devel
+├── Dockerfile                     # image build from archlinux:base-devel
 ├── omarchy-sandbox.yaml           # v3 workload kit descriptor
 ├── context.md                     # agent instructions (written as AGENTS.md)
 ├── scripts/                       # Herdr install, repo setup, and auto-start
@@ -216,7 +227,7 @@ omarchy-sandbox/
 docker pull juntaoyuan/omarchy-sandbox:4.5.0
 ```
 
-Tags `4.5.0` and `latest` (linux/amd64, about 1.6 GB compressed). `sbx run`
+Tags `4.5.0` and `latest` (linux/amd64, about 1.3 GB compressed). `sbx run`
 and `sbx create` with `-t juntaoyuan/omarchy-sandbox:4.5.0` pull it on
 their own.
 
@@ -241,7 +252,7 @@ Docker never needs it when you can pull or build. `sbx` keeps its own image
 store, separate from Docker's, so it needs `sbx template load` plus
 `--pull never`.
 
-**Do not commit the tarball to git.** It is about 3.6 GB, GitHub rejects any
+**Do not commit the tarball to git.** It is about 3.2 GB, GitHub rejects any
 file over 100 MB, and `*.tar` is in `.gitignore`. Share new versions by
 pushing to Docker Hub:
 
@@ -255,15 +266,12 @@ docker push juntaoyuan/omarchy-sandbox:latest
 ### Option C — rebuild from this kit
 
 ```bash
-docker build -f omarchy-sandbox.dockerfile \
-  --build-arg OMARCHY_VERSION=v4.5.0 \
-  -t omarchy-sandbox:4.5.0 .
+docker build --build-arg OMARCHY_VERSION=v4.5.0 -t omarchy-sandbox:4.5.0 .
 ```
 
-This starts from `archlinux:base-devel` and takes a while (pacman, npm,
-AUR/yay, LazyVim). The `Dockerfile` in this directory is a faster adapter
-that starts `FROM devmarchy:4.5.0`; use it only when that image is already
-present. A local build is tagged `omarchy-sandbox:4.5.0`; use that name in
+This starts from `archlinux:base-devel` and installs everything with
+pacman, npm, yay, and LazyVim. Each build step deletes its own downloads
+and caches before it ends (see `NOTES.md`). A local build is tagged `omarchy-sandbox:4.5.0`; use that name in
 place of `juntaoyuan/omarchy-sandbox:4.5.0` in the commands above.
 
 ## Agent credentials
@@ -335,7 +343,7 @@ This is **not** official Omarchy, and it is **not** a full Omarchy install.
 - **Docker's kernel, not Omarchy's.** Docker Sandboxes still boots Docker's
   microVM kernel. This template only changes the userland (packages, configs,
   and CLIs).
-- **linux/amd64 and large.** The image is about **3.6 GB** unpacked.
+- **linux/amd64 and large.** The image is about **3.2 GB** unpacked.
 - **Network allow-list (v3 kit only).** `omarchy-sandbox.yaml` allows a fixed
   set of hosts (OpenAI, GitHub, npm, PyPI, Arch/AUR mirrors). Other hosts are
   blocked when you launch the kit with `sbx run ./omarchy-sandbox`. The
@@ -344,6 +352,3 @@ This is **not** official Omarchy, and it is **not** a full Omarchy install.
 - **LazyVim** was installed with a best-effort headless sync. It may need a
   first-run update inside the sandbox.
 - **No Docker Engine inside the image.** There is no nested Docker daemon.
-- The fast local build may contain an **empty leftover `/home/devmarchy`
-  directory**. It is not the live home (the account is `agent` at
-  `/home/agent`). A standalone rebuild does not have this leftover.
