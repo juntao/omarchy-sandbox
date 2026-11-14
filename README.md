@@ -182,7 +182,6 @@ chrome-devtools stop
 `chrome-devtools-mcp` is pre-registered for Claude Code, Codex, and
 Gemini, and pointed at this Chrome (`--headless`, `--isolated`). The
 Chrome DevTools skills are copied into each agent's skills directory.
-Do not run `agent-browser install`; that would download a second Chrome.
 
 ![Claude Code in the sandbox browsing Hacker News with Chrome](docs/images/hn-claude.png)
 
@@ -250,8 +249,7 @@ docker build --build-arg OMARCHY_VERSION=v4.5.0 -t omarchy-sandbox:4.5.0 .
 ```
 
 This starts from `archlinux:base-devel` and installs everything with
-pacman, npm, yay, and LazyVim. Each build step deletes its own downloads
-and caches before it ends (see `NOTES.md`). A local build is tagged `omarchy-sandbox:4.5.0`; use that name in
+pacman, npm, yay, and LazyVim. A local build is tagged `omarchy-sandbox:4.5.0`; use that name in
 place of `juntaoyuan/omarchy-sandbox:4.5.0` in the commands above.
 
 ## Agent credentials

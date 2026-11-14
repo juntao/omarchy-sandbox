@@ -122,13 +122,10 @@ directory (6.45 GB), so it was removed.
     on PATH (`/usr/local/bin/google-chrome-stable`) adds `--no-sandbox`
     and `--disable-dev-shm-usage`, because Chrome's setuid sandbox does
     not work as a non-root user in this container. `agent-browser` is
-    pointed at that wrapper via `AGENT_BROWSER_EXECUTABLE_PATH`; do not
-    run `agent-browser install` (that would download a second Chrome).
+    pointed at that wrapper via `AGENT_BROWSER_EXECUTABLE_PATH`.
     Default chrome-devtools-mcp settings live in
     `~/.config/cd4a/config.json` (headless, isolated, the wrapper, no
     usage statistics). The MCP server is also registered for Claude Code
     (`~/.claude.json`), Codex (`~/.codex/config.toml`), and Gemini
     (`~/.gemini/settings.json`). The package's skills are copied into
-    each agent's skills directory. This step runs after yay and before
-    `ENV BASH_ENV`, and cleans pacman, npm, and `~/.cache` in the same
-    RUN.
+    each agent's skills directory.
