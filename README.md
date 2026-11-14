@@ -154,40 +154,6 @@ Herdr and Omarchy's Tmux config both use **Ctrl+Space** as the prefix. Run
 one or the other in a terminal, not Herdr inside Tmux (or the reverse),
 unless you change one prefix.
 
-## What is in the image
-
-| Item | Value |
-| --- | --- |
-| User | `agent`, UID/GID 1000, home `/home/agent` |
-| Workdir | `/home/agent/workspace` |
-| Omarchy | v4.5.0 (commit `ac2690c`, recorded in `/etc/omarchy-sandbox-release`); `omarchy-version` prints `dev` |
-| `omarchy` | on PATH for login, non-interactive, and interactive bash |
-| herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
-| Google Chrome | `google-chrome-stable`, headless-ready in this container |
-| Chrome DevTools | `chrome-devtools` CLI and `chrome-devtools-mcp` (Google) |
-| agent-browser | Vercel CLI, pointed at the image's Chrome |
-| Claude Code | `claude` 2.1.325 |
-| Codex CLI | `codex-cli 0.169.0` |
-| tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
-| nvim | v0.12.6 (LazyVim) |
-| lazygit | 0.66.3 |
-| starship | 1.27.0 |
-| git | 2.56.1 |
-
-Also installed: `opencode`, `gemini`, `copilot`, base-devel (gcc, make),
-mise, yay, fastfetch, ripgrep, fd, fzf, bat, eza, zoxide, jq, and tldr.
-
-Left out on purpose, because a headless agent OS does not use them:
-
-- Omarchy's theme wallpapers, intro videos, and preview images (only the
-  Hyprland desktop shows them; the text theme files stay) and the Omarchy
-  clone's `.git` (another full copy of those files).
-- Man pages. The Arch base image never extracts them, so `man-db` is not
-  installed; use `tldr <cmd>` or `<cmd> --help`.
-- Package and build caches (pacman, npm, yay/makepkg, nvim) and `-debug`
-  packages; makepkg's `debug` option is off.
-- opencode's second, unused platform binary.
-
 ## Browse the web
 
 Google Chrome is installed as `google-chrome-stable`. In this container a
@@ -217,6 +183,10 @@ chrome-devtools stop
 Gemini, and pointed at this Chrome (`--headless`, `--isolated`). The
 Chrome DevTools skills are copied into each agent's skills directory.
 Do not run `agent-browser install`; that would download a second Chrome.
+
+![Claude Code in the sandbox browsing Hacker News with Chrome](docs/images/hn-claude.png)
+
+Claude Code in the sandbox browsing Hacker News with Chrome.
 
 The kit:
 
@@ -342,6 +312,40 @@ Use `/etc/sandbox-persistent.sh` for exports that later Bash sessions need.
 Login, interactive, and non-interactive shells source it through
 `/etc/sandbox-env.sh` (`BASH_ENV` is set). That wrapper also starts the
 Herdr server. Do not put shell completion in either file.
+
+## What is in the image
+
+| Item | Value |
+| --- | --- |
+| User | `agent`, UID/GID 1000, home `/home/agent` |
+| Workdir | `/home/agent/workspace` |
+| Omarchy | v4.5.0 (commit `ac2690c`, recorded in `/etc/omarchy-sandbox-release`); `omarchy-version` prints `dev` |
+| `omarchy` | on PATH for login, non-interactive, and interactive bash |
+| herdr | 0.9.5, official Omarchy package; headless `herdr server` auto-starts |
+| Google Chrome | `google-chrome-stable`, headless-ready in this container |
+| Chrome DevTools | `chrome-devtools` CLI and `chrome-devtools-mcp` (Google) |
+| agent-browser | Vercel CLI, pointed at the image's Chrome |
+| Claude Code | `claude` 2.1.325 |
+| Codex CLI | `codex-cli 0.169.0` |
+| tmux | 3.8, with Omarchy's `tmux.conf` (`Ctrl + Space` prefix) |
+| nvim | v0.12.6 (LazyVim) |
+| lazygit | 0.66.3 |
+| starship | 1.27.0 |
+| git | 2.56.1 |
+
+Also installed: `opencode`, `gemini`, `copilot`, base-devel (gcc, make),
+mise, yay, fastfetch, ripgrep, fd, fzf, bat, eza, zoxide, jq, and tldr.
+
+Left out on purpose, because a headless agent OS does not use them:
+
+- Omarchy's theme wallpapers, intro videos, and preview images (only the
+  Hyprland desktop shows them; the text theme files stay) and the Omarchy
+  clone's `.git` (another full copy of those files).
+- Man pages. The Arch base image never extracts them, so `man-db` is not
+  installed; use `tldr <cmd>` or `<cmd> --help`.
+- Package and build caches (pacman, npm, yay/makepkg, nvim) and `-debug`
+  packages; makepkg's `debug` option is off.
+- opencode's second, unused platform binary.
 
 ## Limitations
 
